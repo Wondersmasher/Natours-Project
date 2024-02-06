@@ -1,68 +1,91 @@
-const fs = require('fs')
+const fs = require("fs");
+const mongoose = require("mongoose");
+const tourSchema = require("../model/tourModel");
 
-const tours = JSON.parse(fs.readFileSync('./dev-data/data/tours-simple.json')) 
+const Tours = mongoose.model("Tours", tourSchema);
 
-exports.postTour = (req, res)=>{
-    const newId = tours[tours.length - 1].id + 1;
-    const newTour = Object.assign({id:newId}, req.body)
-    tours.push(newTour)
-    
-    fs.writeFile('./dev-data/data/tours-simple.json', JSON.stringify(tours), (err)=>{
-        console.log(err)
-        res.status(201).json({
-            status:'success',
-          data:{tour:newTour},
-        })
-    })
-    }
+exports.postTour = async (req, res) => {
+  try {
+    const tour = await Tours.create(req.body);
+    res.status(201).json({
+      status: "success",
+      data: { tour },
+    });
+  } catch (error) {
+    console.log(`Error : ${error}`);
+    res.status(404).json({
+      status: "error",
+      message: error,
+    });
+  }
+};
 
-    exports.CheckPost = (req, res, next) =>  { 
-        if(!req.body.name || !req.body.price){
-            return res.status(400).json({
-                status:'fail',
-                message:'Missing name or price'
-            })
-        }
-        next()
-    }
-    
-    exports.getTours = (req, res)=>{
-        res.status(200).json({
-            status: 'success',
-            data: { 
-                tours
-            },
-        })
-    }
-    
-    exports.getOneTour = (req, res)=>{
-        const id = Number(req.params.id)
-        const tour = tours.find(item => item.id === id)
-    
-        // if(!tour){
-        //     return res.status(401).json({
-        //         status:'failed',
-        //         message:'Invalid ID'
-        //     })
-        // }
-    
-        res.status(200).json({
-            status: 'success',
-            data: { 
-                tour
-            },
-        })
-    }
-    
+exports.getTours = async (req, res) => {
+  try {
+    const tours = await Tours.find();
+    res.status(200).json({
+      status: "success",
+      data: { tours },
+    });
+  } catch (error) {
+    console.log(`Error : ${error}`);
+    res.status(404).json({
+      status: "error",
+      message: error,
+    });
+  }
+};
 
-    exports.CheckID = (req, res, next, value) => {
-        const id = value * 1
-        const tour = tours.find(tour=> tour.id === id)
-        if(!tour){
-            return res.status(401).json({
-                status:'error',
-                message:'Invalid ID'
-            })
-        }
-        next()
-        }
+// BUG: I found out that the getOneTour route handler returns a success when an item has been deleted it still shows success  with data set to null even if the item is no longer in the database( only happens when you delete an item from the database)
+// FIXME: Fix the above bug
+exports.getOneTour = async (req, res) => {
+  try {
+    const tour = await Tours.findById(req.params.id);
+
+    //   const id = Number(req.params.id);
+    //   const tour = tours.find((item) => item.id === id);
+
+    res.status(200).json({
+      status: "success",
+      data: { tour },
+    });
+  } catch (error) {
+    console.log(`Error : ${error}`);
+    res.status(404).json({
+      status: "error",
+      message: error,
+    });
+  }
+};
+
+exports.deleteTour = async (req, res) => {
+  try {
+    await Tours.findByIdAndDelete(req.params.id);
+    res.status(204).json({
+      status: "success",
+      data: null,
+    });
+  } catch (error) {
+    console.log(`Error : ${error}`);
+    res.status(404).json({
+      status: "error",
+      message: error,
+    });
+  }
+};
+
+exports.updateTour = async (req, res) => {
+  try {
+    const updatedTour = await Tours.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    res.status().json({ status: "success", data: { tour: updatedTour } });
+  } catch (error) {
+    console.log(`Error : ${error}`);
+    res.status(404).json({
+      status: "error",
+      message: error,
+    });
+  }
+};
